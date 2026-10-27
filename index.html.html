@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="es"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Integración numérica: Trapecio y Simpson</title>
+<style>
+:root{--bg:#f4f6f9;--card:#fff;--tx:#18202c;--mut:#5b6677;--bd:#d8dee7;--ac:#2457d6;--acbg:#e6edfb;--ok:#17803d;--okbg:#e5f5ea;--er:#b42318;--erbg:#fdecea;--wn:#8a5a00;--wnbg:#fff4dc;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#10141a;--card:#1a2029;--tx:#e8edf4;--mut:#9aa6b8;--bd:#2d3644;--ac:#7ea2ff;--acbg:#1f2b45;--ok:#5fd18a;--okbg:#17301f;--er:#ff8a80;--erbg:#3a1c1a;--wn:#f2c15b;--wnbg:#35290f}}
+:root[data-theme="dark"]{--bg:#10141a;--card:#1a2029;--tx:#e8edf4;--mut:#9aa6b8;--bd:#2d3644;--ac:#7ea2ff;--acbg:#1f2b45;--ok:#5fd18a;--okbg:#17301f;--er:#ff8a80;--erbg:#3a1c1a;--wn:#f2c15b;--wnbg:#35290f}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--tx);font:15px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+main{max-width:980px;margin:0 auto;padding:16px}
+h1{font-size:1.5rem;margin:.2rem 0}h2{font-size:1.05rem;margin:0 0 .6rem}
+.sub{color:var(--mut);margin:0 0 14px}
+.card{background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:14px;margin-bottom:14px}
+.row{display:flex;flex-wrap:wrap;gap:10px}.row>*{flex:1 1 150px}
+label{display:block;font-size:.8rem;color:var(--mut);margin:6px 0 2px}
+input,select,textarea{width:100%;padding:8px 10px;border:1px solid var(--bd);border-radius:8px;background:var(--bg);color:var(--tx);font:inherit}
+textarea{min-height:130px;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.85rem}
+button{padding:9px 14px;border:1px solid var(--ac);border-radius:8px;background:var(--ac);color:#fff;font:inherit;font-weight:600;cursor:pointer}
+button.s{background:transparent;color:var(--ac)}
+.bar{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+.msg{padding:9px 12px;border-radius:8px;margin:8px 0;font-size:.9rem}
+.er{background:var(--erbg);color:var(--er)}.ok{background:var(--okbg);color:var(--ok)}.wn{background:var(--wnbg);color:var(--wn)}
+.msg ul{margin:0;padding-left:18px}
+.sc{overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-size:.85rem;font-variant-numeric:tabular-nums}
+th,td{padding:6px 8px;border-bottom:1px solid var(--bd);text-align:right;white-space:nowrap}
+th:first-child,td:first-child{text-align:left}
+th{color:var(--mut);font-weight:600}
+.na{color:var(--mut);font-style:italic}
+.best{background:var(--acbg)}
+svg{width:100%;height:auto;display:block}
+.ax{stroke:var(--mut);stroke-width:1}.ar{fill:var(--ac);fill-opacity:.22}.ln{fill:none;stroke:var(--ac);stroke-width:2}
+.tr{fill:none;stroke:var(--wn);stroke-width:1.2;stroke-dasharray:4 3}.dt{fill:var(--card);stroke:var(--ac);stroke-width:1.5}
+svg text{fill:var(--mut);font-size:11px}
+.hint{font-size:.8rem;color:var(--mut)}
+</style></head>
+<body><main>
+<h1>Integración numérica</h1>
+<p class="sub">Trapecio compuesto, Simpson 1/3 y Simpson 3/8 · Métodos Numéricos</p>
+
+<section class="card">
+<h2>Datos de entrada</h2>
+<div class="row">
+<div><label for="mode">Tipo de entrada</label>
+<select id="mode"><option value="pairs">Parejas (x, y) en texto</option><option value="lists">Dos listas: x e y</option><option value="func">Función f(x), a, b y n</option></select></div>
+<div><label for="pre">Ejemplos del informe</label>
+<select id="pre"><option value="val">Validación f(x)=x², [0,2]</option><option value="e19">Ej. 19 · Velocidad (n=7)</option><option value="e20">Ej. 20 · Banda elástica (n=7)</option><option value="e21">Ej. 21 · Perfil topográfico (n=9)</option><option value="e22">Ej. 22 · Catenaria</option><option value="e24">Ej. 24 · Cardioide</option><option value="e25">Ej. 25 · Energía satelital</option><option value="e26">Ej. 26 · Lago Erie (n=11)</option></select></div>
+<div style="flex:0 0 auto;align-self:end"><button class="s" id="bpre" type="button">Cargar</button></div>
+</div>
+
+<div id="g_pairs"><label for="pairs">Una pareja por línea: «x, y», «x y» o «x; y» (con «;» o tabulador se admite coma decimal)</label>
+<textarea id="pairs" spellcheck="false"></textarea></div>
+<div id="g_lists" hidden><div class="row"><div><label for="lx">Lista de x</label><textarea id="lx" spellcheck="false"></textarea></div><div><label for="ly">Lista de y</label><textarea id="ly" spellcheck="false"></textarea></div></div>
+<p class="hint">Separa con comas, espacios, saltos de línea o punto y coma.</p></div>
+<div id="g_func" hidden><label for="fx">f(x) — usa x, + − * / ^, sin, cos, tan, sinh, cosh, exp, ln, log, sqrt, abs, pi, e</label>
+<input id="fx" spellcheck="false">
+<div class="row"><div><label for="fa">a</label><input id="fa"></div><div><label for="fb">b</label><input id="fb"></div><div><label for="fn">n (subintervalos)</label><input id="fn" inputmode="numeric"></div></div></div>
+
+<div class="row">
+<div><label for="xu">Unidad de x</label><input id="xu" placeholder="ej. s, in, m"></div>
+<div><label for="yu">Unidad de y / f(x)</label><input id="yu" placeholder="ej. mi/h, lb, N"></div>
+<div><label for="fc">Factor de conversión (opcional)</label><input id="fc" placeholder="ej. 1/3600"></div>
+<div><label for="ou">Unidad tras convertir</label><input id="ou" placeholder="ej. mi"></div>
+<div><label for="rf">Valor de referencia (opcional)</label><input id="rf" placeholder="ej. 8/3"></div>
+</div>
+<div class="bar"><button id="bcalc" type="button">Calcular</button><button class="s" id="bval" type="button">Prueba de validación f(x)=x²</button></div>
+</section>
+
+<div id="msgs"></div>
+<div id="out" hidden>
+<section class="card"><h2>Resultados</h2><div class="sc" id="res"></div><div id="cmp"></div></section>
+<section class="card"><h2>Gráfico: datos y área bajo la curva</h2><div id="chart"></div>
+<p class="hint">Área sombreada: integral. Línea punteada: unión de nodos (borde del trapecio compuesto).</p></section>
+<section class="card"><h2>Tabla de factores (pesos) de integración</h2><div class="sc" id="wt"></div></section>
+</div>
+</main>
+<script>
+const $=id=>document.getElementById(id);
+const FN={sin:Math.sin,cos:Math.cos,tan:Math.tan,asin:Math.asin,acos:Math.acos,atan:Math.atan,sinh:Math.sinh,cosh:Math.cosh,tanh:Math.tanh,exp:Math.exp,ln:Math.log,log:Math.log10,sqrt:Math.sqrt,abs:Math.abs,pi:Math.PI,e:Math.E};
+function compile(s){
+  s=String(s).trim().toLowerCase().replace(/\^/g,'**');
+  if(!s)throw new Error('expresión vacía');
+  if(!/^[a-z0-9_+\-*\/().\s]+$/.test(s))throw new Error('contiene caracteres no permitidos');
+  for(const id of (s.match(/(?<![\d.])[a-z_]\w*/g)||[]))if(id!=='x'&&!(id in FN))throw new Error('identificador desconocido «'+id+'»');
+  let f;try{f=new Function('x',...Object.keys(FN),'return ('+s+');')}catch(_){throw new Error('expresión no válida')}
+  const v=Object.values(FN);return x=>f(x,...v);
+}
+function scalar(id,label,errs,opt){
+  const s=$(id).value.trim();if(!s){if(!opt)errs.push(label+': campo vacío.');return null}
+  try{const v=compile(s)(0);if(!isFinite(v))throw new Error('no es un número finito');return v}
+  catch(e){errs.push(label+': '+e.message+'.');return null}
+}
+const PRE={
+ val:{mode:'func',fx:'x^2',fa:'0',fb:'2',fn:'6',rf:'8/3',xu:'',yu:'',fc:'',ou:''},
+ e19:{mode:'pairs',pairs:'0 0\n1 14\n2 39\n3 69\n4 95\n5 114\n6 129\n7 139',xu:'s',yu:'mi/h',fc:'1/3600',ou:'mi',rf:''},
+ e20:{mode:'pairs',pairs:'0 0\n0.4 0.85\n0.8 1.30\n1.2 1.60\n1.6 1.87\n2.0 2.14\n2.4 2.34\n2.8 2.52',xu:'in',yu:'lb',fc:'0.112985',ou:'J',rf:''},
+ e21:{mode:'pairs',pairs:'1 1.3\n2 3.7\n3 4.6\n4 4.4\n5 2.7\n6 2.5\n7 3.6\n8 5.3\n9 6.0\n10 5.9',xu:'u',yu:'u',fc:'',ou:'',rf:''},
+ e22:{mode:'func',fx:'cosh(x/24)',fa:'-12',fb:'26',fn:'8',rf:'24*(sinh(26/24)-sinh(-12/24))',xu:'ft',yu:'',fc:'',ou:''},
+ e24:{mode:'func',fx:'20*sin(x/2)',fa:'0',fb:'2*pi',fn:'8',rf:'80',xu:'',yu:'',fc:'',ou:''},
+ e25:{mode:'pairs',pairs:'0 4905.00\n100000 4754.57\n200000 4610.96\n300000 4473.76\n400000 4342.59\n500000 4217.10\n600000 4096.98\n700000 3981.92\n800000 3871.64',xu:'m',yu:'N',fc:'',ou:'',rf:'3.486236787e9'},
+ e26:{mode:'pairs',pairs:'40 38\n60 42\n80 48\n100 55\n120 62\n140 58\n160 45\n180 32\n200 25\n220 15\n240 8\n260 0',xu:'mi',yu:'mi',fc:'',ou:'',rf:'9940'}
+};
+function load(k){
+  const p=PRE[k];$('mode').value=p.mode;
+  for(const id of ['pairs','fx','fa','fb','fn'])if(id in p)$(id).value=p[id];
+  for(const id of ['rf','xu','yu','fc','ou'])$(id).value=p[id]||'';
+  modeUI();
+}
+function modeUI(){const m=$('mode').value;$('g_pairs').hidden=m!=='pairs';$('g_lists').hidden=m!=='lists';$('g_func').hidden=m!=='func'}
+function nums(tokens,label,errs){
+  const r=[];tokens.forEach((t,i)=>{const v=t.trim()===''?NaN:Number(t.replace(',','.'));if(!isFinite(v))errs.push(`${label}, posición ${i+1}: dato no numérico («${t}»).`);r.push(v)});return r;
+}
+function readData(errs){
+  const m=$('mode').value;let xs=[],ys=[],f=null;
+  if(m==='pairs'){
+    $('pairs').value.split('\n').map(l=>l.trim()).filter(Boolean).forEach((l,k)=>{
+      const semi=/[;\t]/.test(l);const t=semi?l.split(/[;\t]/).map(v=>v.trim()):l.split(/[\s,]+/);
+      if(t.length!==2){errs.push(`Línea ${k+1}: se esperaban 2 valores (x, y) y hay ${t.length}.`);return}
+      const a=nums([t[0]],`Línea ${k+1} (x)`,errs),b=nums([t[1]],`Línea ${k+1} (y)`,errs);
+      xs.push(a[0]);ys.push(b[0]);
+    });
+  }else if(m==='lists'){
+    const sp=id=>$(id).value.trim().split(/[\s,;]+/).filter(Boolean);
+    const X=sp('lx'),Y=sp('ly');
+    if(X.length!==Y.length){errs.push(`Las listas son desiguales: ${X.length} valores de x y ${Y.length} de y.`);return null}
+    xs=nums(X,'Lista x',errs);ys=nums(Y,'Lista y',errs);
+  }else{
+    const a=scalar('fa','a',errs),b=scalar('fb','b',errs),n=scalar('fn','n',errs);
+    try{f=compile($('fx').value)}catch(e){errs.push('f(x): '+e.message+'.')}
+    if(errs.length)return null;
+    if(!Number.isInteger(n)||n<1)errs.push('n debe ser un entero positivo.');
+    else if(n>5000)errs.push('n es demasiado grande (máximo 5000).');
+    if(!(a<b))errs.push('Se requiere a < b.');
+    if(errs.length)return null;
+    const h=(b-a)/n;
+    for(let i=0;i<=n;i++){const x=a+i*h;let y;try{y=f(x)}catch(_){y=NaN}
+      if(!isFinite(y)){errs.push(`f(x) no está definida o no es finita en x = ${x}.`);return null}
+      xs.push(x);ys.push(y)}
+    return{xs,ys,f,h};
+  }
+  if(errs.length)return null;
+  if(xs.length<2){errs.push('Se necesitan al menos 2 puntos (n ≥ 1).');return null}
+  for(let i=1;i<xs.length;i++)if(!(xs[i]>xs[i-1])){errs.push(`x no es creciente: x[${i+1}] = ${xs[i]} no es mayor que x[${i}] = ${xs[i-1]}.`);return null}
+  const h=(xs[xs.length-1]-xs[0])/(xs.length-1);
+  for(let i=1;i<xs.length;i++)if(Math.abs((xs[i]-xs[i-1])-h)>1e-7*Math.abs(h)+1e-12){
+    errs.push(`Espaciamiento no uniforme: x[${i+1}] − x[${i}] = ${+(xs[i]-xs[i-1]).toPrecision(8)}, pero h promedio = ${+h.toPrecision(8)}. Las reglas compuestas exigen h constante.`);return null}
+  return{xs,ys,f:null,h};
+}
+const sum=(a,i0,i1,st=1)=>{let s=0;for(let i=i0;i<=i1;i+=st)s+=a[i];return s};
+function trap(y,h){const n=y.length-1;return h*((y[0]+y[n])/2+sum(y,1,n-1))}
+function s13(y,h,i0,i1){let s=y[i0]+y[i1];for(let i=i0+1;i<i1;i++)s+=((i-i0)%2?4:2)*y[i];return h/3*s}
+function s38(y,h,i0,i1){let s=y[i0]+y[i1];for(let i=i0+1;i<i1;i++)s+=((i-i0)%3?3:2)*y[i];return 3*h/8*s}
+const f6=v=>Number.isFinite(v)?v.toFixed(6):'—';
+const sh=v=>String(Number(v.toPrecision(4)));
+function run(){
+  const errs=[];const box=$('msgs');box.innerHTML='';
+  const rf=scalar('rf','Valor de referencia',errs,true),fc=scalar('fc','Factor de conversión',errs,true);
+  const d=readData(errs);
+  if(errs.length||!d){
+    $('out').hidden=true;
+    box.innerHTML='<div class="msg er"><b>No se puede calcular:</b><ul>'+errs.slice(0,12).map(e=>`<li>${e}</li>`).join('')+(errs.length>12?`<li>… y ${errs.length-12} errores más.</li>`:'')+'</ul></div>';
+    return null;
+  }
+  const {xs,ys,h,f}=d,n=xs.length-1;
+  const xu=$('xu').value.trim()||'u',yu=$('yu').value.trim()||'u',ou=$('ou').value.trim();
+  const unit=`${yu}·${xu}`,k=fc!==null&&fc!==1?fc:null;
+  const M=[{k:'T',name:'Trapecio compuesto',ok:true,v:trap(ys,h)}];
+  M.push({k:'S13',name:'Simpson 1/3',ok:n%2===0,why:`n = ${n} no es par`,v:n%2===0?s13(ys,h,0,n):NaN});
+  M.push({k:'S38',name:'Simpson 3/8',ok:n%3===0,why:`n = ${n} no es múltiplo de 3`,v:n%3===0?s38(ys,h,0,n):NaN});
+  if(n%2===1&&n>=3){const j=n-3;M.push({k:'C',name:`Simpson 1/3 [0,${j}] + 3/8 [${j},${n}]`,ok:true,v:(j>0?s13(ys,h,0,j):0)+s38(ys,h,j,n)})}
+  const notes=[];
+  if(!M[1].ok)notes.push(`Simpson 1/3 no es aplicable: ${M[1].why}.`);
+  if(!M[2].ok)notes.push(`Simpson 3/8 no es aplicable: ${M[2].why}.`);
+  if(M[3])notes.push('Como n es impar, se muestra la combinación de Simpson 1/3 con 3/8 en los últimos 3 subintervalos.');
+  if(notes.length)box.innerHTML='<div class="msg wn">'+notes.join('<br>')+'</div>';
+  const av=M.filter(m=>m.ok);
+  let best=null;
+  if(rf!==null){let bd=Infinity;av.forEach(m=>{m.ea=Math.abs(m.v-rf);m.er=rf!==0?m.ea/Math.abs(rf)*100:NaN;if(m.ea<bd){bd=m.ea;best=m}})}
+  let h1='<tr><th>Método</th><th>Valor ('+unit+')</th>';
+  if(k)h1+=`<th>Convertido (${ou||'—'})</th>`;
+  if(rf!==null)h1+='<th>Error absoluto</th><th>Error relativo (%)</th>';
+  h1+='</tr>';
+  let rows='';
+  if(rf!==null)rows+=`<tr><td><b>Valor de referencia</b></td><td>${f6(rf)}</td>${k?`<td>${f6(rf*k)}</td>`:''}<td>—</td><td>—</td></tr>`;
+  M.forEach(m=>{
+    if(!m.ok){rows+=`<tr><td>${m.name}</td><td class="na" colspan="${1+(k?1:0)+(rf!==null?2:0)}">No aplicable: ${m.why}</td></tr>`;return}
+    rows+=`<tr class="${m===best?'best':''}"><td>${m.name}</td><td>${f6(m.v)}</td>${k?`<td>${f6(m.v*k)}</td>`:''}${rf!==null?`<td>${f6(m.ea)}</td><td>${f6(m.er)}</td>`:''}</tr>`;
+  });
+  $('res').innerHTML=`<table>${h1}${rows}</table>`;
+  let c='<p class="hint">h = '+f6(h)+' '+xu+' · n = '+n+' subintervalos · '+(n+1)+' nodos.</p>';
+  if(av.length>1){
+    const vs=av.map(m=>m.v),mx=Math.max(...vs),mn=Math.min(...vs),mid=(mx+mn)/2;
+    c+=`<p><b>Comparación:</b> diferencia máxima entre métodos aplicables = ${f6(mx-mn)} ${unit}`+(mid!==0?` (${f6((mx-mn)/Math.abs(mid)*100)} %)`:'')+'.'
+      +(best?` El más cercano a la referencia es <b>${best.name}</b>.`:'')+'</p>';
+    const T=M[0].v;c+='<div class="sc"><table><tr><th>Método</th><th>Diferencia vs. trapecio</th></tr>'+av.slice(1).map(m=>`<tr><td>${m.name}</td><td>${f6(m.v-T)}</td></tr>`).join('')+'</table></div>';
+  }
+  $('cmp').innerHTML=c;
+  // pesos
+  const c1=i=>i===0||i===n?1:2,c2=i=>i===0||i===n?1:(i%2?4:2),c3=i=>i===0||i===n?1:(i%3?3:2);
+  let w=`<table><tr><th>i</th><th>x<sub>i</sub> (${xu})</th><th>f(x<sub>i</sub>) (${yu})</th><th>Trapecio<br>×h/2 = ${f6(h/2)}</th><th>Simpson 1/3<br>×h/3 = ${f6(h/3)}</th><th>Simpson 3/8<br>×3h/8 = ${f6(3*h/8)}</th></tr>`;
+  for(let i=0;i<=n&&i<200;i++)w+=`<tr><td>${i}</td><td>${f6(xs[i])}</td><td>${f6(ys[i])}</td><td>${c1(i)}</td><td>${n%2===0?c2(i):'—'}</td><td>${n%3===0?c3(i):'—'}</td></tr>`;
+  $('wt').innerHTML=w+'</table>'+(n>=200?'<p class="hint">Se muestran los primeros 200 nodos.</p>':'');
+  $('chart').innerHTML=chart(xs,ys,f);
+  $('out').hidden=false;
+  return{M,rf};
+}
+function chart(xs,ys,f){
+  const W=640,H=300,L=56,R=14,T=14,B=32,n=xs.length-1,xa=xs[0],xb=xs[n];
+  let pts=xs.map((x,i)=>[x,ys[i]]);
+  if(f){pts=[];for(let i=0;i<=200;i++){const x=xa+(xb-xa)*i/200,y=f(x);if(isFinite(y))pts.push([x,y])}}
+  const all=pts.map(p=>p[1]).concat(0,ys);let y0=Math.min(...all),y1=Math.max(...all);if(y0===y1)y1=y0+1;
+  const sx=x=>L+(x-xa)/(xb-xa)*(W-L-R),sy=y=>T+(y1-y)/(y1-y0)*(H-T-B);
+  const P=a=>a.map(p=>sx(p[0]).toFixed(1)+','+sy(p[1]).toFixed(1)).join(' ');
+  const area=`${sx(xa).toFixed(1)},${sy(0).toFixed(1)} ${P(pts)} ${sx(xb).toFixed(1)},${sy(0).toFixed(1)}`;
+  const nodes=xs.map((x,i)=>[x,ys[i]]);
+  let s=`<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Gráfico de los datos y del área bajo la curva">`;
+  s+=`<polygon class="ar" points="${area}"/><line class="ax" x1="${L}" x2="${W-R}" y1="${sy(0)}" y2="${sy(0)}"/><line class="ax" x1="${L}" x2="${L}" y1="${T}" y2="${H-B}"/>`;
+  s+=`<polyline class="ln" points="${P(pts)}"/>`;
+  if(f)s+=`<polyline class="tr" points="${P(nodes)}"/>`;
+  if(n<=60)nodes.forEach(p=>s+=`<circle class="dt" cx="${sx(p[0]).toFixed(1)}" cy="${sy(p[1]).toFixed(1)}" r="3.5"/>`);
+  s+=`<text x="${L}" y="${H-12}" text-anchor="middle">${sh(xa)}</text><text x="${W-R}" y="${H-12}" text-anchor="end">${sh(xb)}</text>`;
+  s+=`<text x="${L-6}" y="${T+8}" text-anchor="end">${sh(y1)}</text><text x="${L-6}" y="${H-B}" text-anchor="end">${sh(y0)}</text>`;
+  return s+'</svg>';
+}
+function validar(){
+  load('val');const r=run();if(!r)return;
+  const S=r.M.find(m=>m.k==='S13'),S3=r.M.find(m=>m.k==='S38'),T=r.M[0];
+  const ok=Math.abs(S.v-8/3)<1e-9&&Math.abs(S3.v-8/3)<1e-9;
+  const el=document.createElement('div');el.className='msg '+(ok?'ok':'er');
+  el.innerHTML=`<b>Prueba de validación f(x)=x², [0,2], n=6:</b> exacto 8/3 = ${f6(8/3)} · Trapecio = ${f6(T.v)} · Simpson 1/3 = ${f6(S.v)} · Simpson 3/8 = ${f6(S3.v)}. `+(ok?'✔ Ambas reglas de Simpson reproducen el valor exacto (son exactas para polinomios de grado ≤ 3); el trapecio sobrestima por la convexidad de x².':'✘ Los resultados no coinciden con 8/3.');
+  $('msgs').prepend(el);
+}
+$('mode').onchange=modeUI;$('bpre').onclick=()=>{load($('pre').value);run()};
+$('bcalc').onclick=run;$('bval').onclick=validar;
+validar();
+</script></body></html>
